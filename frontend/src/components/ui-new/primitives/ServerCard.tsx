@@ -9,10 +9,11 @@ import {
   ClockIcon,
   CpuIcon,
   HardDriveIcon,
+  HardDrivesIcon,
   MemoryIcon,
-  ServerIcon,
   WarningCircleIcon,
   XCircleIcon,
+  type Icon,
 } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 import type {
@@ -56,6 +57,12 @@ function getStatusDisplay(status: ServerStatus) {
         color: 'text-error',
         label: '错误',
       };
+    default:
+      return {
+        icon: ClockIcon,
+        color: 'text-muted',
+        label: '未知',
+      };
   }
 }
 
@@ -83,7 +90,7 @@ function ResourceBar({
   available,
 }: {
   label: string;
-  icon: React.ComponentType<{ className?: string; weight?: string }>;
+  icon: Icon;
   percent: number;
   available?: string;
 }) {
@@ -118,7 +125,7 @@ function ResourceBar({
   );
 }
 
-export function ServerCard({ server, onClick, onDelete }: ServerCardProps) {
+export function ServerCard({ server, onClick }: ServerCardProps) {
   const statusDisplay = getStatusDisplay(server.status);
   const StatusIcon = statusDisplay.icon;
   const stats = server.system_stats as SystemStats | null;
@@ -135,7 +142,7 @@ export function ServerCard({ server, onClick, onDelete }: ServerCardProps) {
       {/* Header: 名称 + 状态 */}
       <div className="flex items-start justify-between mb-base">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <ServerIcon className="size-5 text-brand shrink-0" weight="duotone" />
+          <HardDrivesIcon className="size-5 text-brand shrink-0" weight="duotone" />
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-medium text-normal truncate">
               {server.name}

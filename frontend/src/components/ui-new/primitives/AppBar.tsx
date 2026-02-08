@@ -1,7 +1,7 @@
 import {
+  HardDrivesIcon,
   LayoutIcon,
   PlusIcon,
-  ServerIcon,
   SpinnerIcon,
   StarIcon,
 } from '@phosphor-icons/react';
@@ -85,7 +85,7 @@ export function AppBar({
           onClick={onWorkspacesClick}
         />
         <AppBarButton
-          icon={ServerIcon}
+          icon={HardDrivesIcon}
           label="Servers"
           isActive={isServersActive}
           onClick={onServersClick}

@@ -4,23 +4,21 @@
  * 管理服务器列表的状态和业务逻辑，包括数据获取、搜索过滤、对话框交互。
  */
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ServersView } from '../views/ServersView';
 import { useServers } from '@/hooks/useServers';
 import { useOrganizationStore } from '@/stores/useOrganizationStore';
 import { AddServerDialog } from '@/components/dialogs/servers/AddServerDialog';
 
 export function ServersContainer() {
-  const navigate = useNavigate();
   const selectedOrgId = useOrganizationStore((s) => s.selectedOrgId);
   const [searchQuery, setSearchQuery] = useState('');
 
   // 获取服务器列表
   const { data, isLoading } = useServers(selectedOrgId);
-  const servers = data?.servers ?? [];
 
   // 搜索过滤
   const filteredServers = useMemo(() => {
+    const servers = data?.servers ?? [];
     if (!searchQuery.trim()) return servers;
 
     const query = searchQuery.toLowerCase();
@@ -31,12 +29,12 @@ export function ServersContainer() {
         server.description?.toLowerCase().includes(query) ||
         server.tags.some((tag) => tag.toLowerCase().includes(query))
     );
-  }, [servers, searchQuery]);
+  }, [data?.servers, searchQuery]);
 
   /** 打开添加服务器对话框 */
   const handleAddServer = async () => {
     try {
-      await AddServerDialog.show();
+      await AddServerDialog.show({});
     } catch {
       // Dialog cancelled
     }
