@@ -29,6 +29,7 @@ mod billing {
         Router::new()
     }
 }
+mod agent_ws;
 mod electric_proxy;
 pub(crate) mod error;
 mod github_app;
@@ -49,6 +50,7 @@ mod project_statuses;
 mod projects;
 mod pull_requests;
 mod review;
+mod servers;
 mod tags;
 mod tokens;
 mod workspaces;
@@ -106,7 +108,8 @@ pub fn router(state: AppState) -> Router {
         .merge(tokens::public_router())
         .merge(review::public_router())
         .merge(github_app::public_router())
-        .merge(billing::public_router());
+        .merge(billing::public_router())
+        .merge(agent_ws::router());
 
     let v1_protected = Router::<AppState>::new()
         .merge(identity::router())
@@ -128,6 +131,7 @@ pub fn router(state: AppState) -> Router {
         .merge(pull_requests::router())
         .merge(notifications::router())
         .merge(workspaces::router())
+        .merge(servers::router())
         .merge(billing::protected_router())
         .merge(migration::router())
         .layer(middleware::from_fn_with_state(

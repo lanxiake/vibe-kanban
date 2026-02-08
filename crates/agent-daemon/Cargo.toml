@@ -1,0 +1,47 @@
+[package]
+name = "agent-daemon"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Vibe Kanban Agent Daemon - 远程服务器上的 AI 工具管理守护进程"
+
+[[bin]]
+name = "vibe-agent"
+path = "src/main.rs"
+
+[dependencies]
+# 异步运行时
+tokio = { version = "1.0", features = ["full"] }
+tokio-tungstenite = "0.26"
+futures = "0.3"
+
+# 序列化
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+
+# 错误处理
+anyhow = "1.0"
+thiserror = "2.0"
+
+# 日志
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+
+# 工具库
+uuid = { version = "1", features = ["serde", "v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+url = "2.5"
+base64 = "0.22"
+rand = "0.9"
+
+# 系统信息
+sysinfo = "0.33"
+
+# 命令行参数
+clap = { version = "4", features = ["derive", "env"] }
+
+# 复用项目中的执行器
+# executors = { path = "../executors" }
+# utils = { path = "../utils" }
+
+[workspace]

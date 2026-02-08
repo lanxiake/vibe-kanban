@@ -1,0 +1,39 @@
+# Vibe Kanban Agent Daemon - Docker Compose 示例
+# 用于快速部署 Agent Daemon
+
+services:
+  vibe-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vibe-agent
+    restart: unless-stopped
+    environment:
+      # 必填：中心服务器 WebSocket URL
+      - CENTER_URL=${CENTER_URL:?CENTER_URL is required}
+      # 必填：Agent Token（从 Web UI 获取）
+      - AGENT_TOKEN=${AGENT_TOKEN:?AGENT_TOKEN is required}
+      # 可选：日志级别
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # 可选：心跳间隔（秒）
+      - HEARTBEAT_INTERVAL=${HEARTBEAT_INTERVAL:-30}
+    volumes:
+      # 工作区目录（存放 Git 仓库和工作文件）
+      - ${WORKSPACE_DIR:-./workspaces}:/app/workspaces
+      # 配置目录（存放 MCP、Skills 等配置）
+      - ${CONFIG_DIR:-./config}:/app/config
+      # 日志目录
+      - ${LOG_DIR:-./logs}:/var/log/agent
+      # SSH 密钥（用于 Git 操作）
+      - ${SSH_DIR:-~/.ssh}:/home/agent/.ssh:ro
+    # 网络配置
+    network_mode: host
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
