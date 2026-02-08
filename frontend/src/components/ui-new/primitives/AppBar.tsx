@@ -1,6 +1,7 @@
 import {
   LayoutIcon,
   PlusIcon,
+  ServerIcon,
   SpinnerIcon,
   StarIcon,
 } from '@phosphor-icons/react';
@@ -40,8 +41,10 @@ interface AppBarProps {
   onCreateOrg: () => void;
   onCreateProject: () => void;
   onWorkspacesClick: () => void;
+  onServersClick: () => void;
   onProjectClick: (projectId: string) => void;
   isWorkspacesActive: boolean;
+  isServersActive: boolean;
   activeProjectId: string | null;
   isSignedIn?: boolean;
   isLoadingProjects?: boolean;
@@ -55,8 +58,10 @@ export function AppBar({
   onCreateOrg,
   onCreateProject,
   onWorkspacesClick,
+  onServersClick,
   onProjectClick,
   isWorkspacesActive,
+  isServersActive,
   activeProjectId,
   isSignedIn,
   isLoadingProjects,
@@ -71,13 +76,19 @@ export function AppBar({
         'bg-secondary border-r border-border'
       )}
     >
-      {/* Top section: Workspaces button */}
+      {/* Top section: Workspaces and Servers buttons */}
       <div className="flex flex-col items-center gap-1">
         <AppBarButton
           icon={LayoutIcon}
           label="Workspaces"
           isActive={isWorkspacesActive}
           onClick={onWorkspacesClick}
+        />
+        <AppBarButton
+          icon={ServerIcon}
+          label="Servers"
+          isActive={isServersActive}
+          onClick={onServersClick}
         />
       </div>
 

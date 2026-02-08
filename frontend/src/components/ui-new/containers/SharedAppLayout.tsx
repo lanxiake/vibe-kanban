@@ -85,12 +85,17 @@ export function SharedAppLayout() {
 
   // Navigation state for AppBar active indicators
   const isWorkspacesActive = location.pathname.startsWith('/workspaces');
+  const isServersActive = location.pathname.startsWith('/servers');
   const activeProjectId = location.pathname.startsWith('/projects/')
     ? location.pathname.split('/')[2]
     : null;
 
   const handleWorkspacesClick = useCallback(() => {
     navigate('/workspaces');
+  }, [navigate]);
+
+  const handleServersClick = useCallback(() => {
+    navigate('/servers');
   }, [navigate]);
 
   const handleProjectClick = useCallback(
@@ -139,8 +144,10 @@ export function SharedAppLayout() {
           onCreateOrg={handleCreateOrg}
           onCreateProject={handleCreateProject}
           onWorkspacesClick={handleWorkspacesClick}
+          onServersClick={handleServersClick}
           onProjectClick={handleProjectClick}
           isWorkspacesActive={isWorkspacesActive}
+          isServersActive={isServersActive}
           activeProjectId={activeProjectId}
           isSignedIn={isSignedIn}
           isLoadingProjects={isLoading}
