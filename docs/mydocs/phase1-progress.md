@@ -1,0 +1,142 @@
+# Phase 1: 服务器管理 + Agent Daemon 基础 - 进度追踪
+
+> 最后更新: 2026-02-09
+
+## 总体进度
+
+| 模块 | 完成度 | 状态 |
+|------|--------|------|
+| 后端 API (P1-B1~B8) | 6/8 | 进行中 |
+| Agent Daemon (P1-A1~A8) | 0/8 | 未开始 |
+| 前端 UI (P1-F1~F8) | 8/8 | 完成 |
+
+---
+
+## 后端任务 (Rust)
+
+| ID | 任务 | 状态 | 关键文件 | 备注 |
+|----|------|------|----------|------|
+| P1-B1 | Server 数据模型 | :white_check_mark: 完成 | `crates/remote/migrations/20260208000000_servers_and_executors.sql` | 包含 servers 和 server_executors 表 |
+| P1-B2 | ServerExecutor 数据模型 | :white_check_mark: 完成 | 同上 | 与 P1-B1 合并实现 |
+| P1-B3 | 数据库迁移文件 | :white_check_mark: 完成 | 同上 | 枚举、索引、触发器均已创建 |
+| P1-B4 | 服务器 CRUD API | :white_check_mark: 完成 | `crates/remote/src/routes/servers.rs` | 含 list/create/get/update/delete |
+| P1-B5 | Agent Token 生成验证 | :white_check_mark: 完成 | 集成在 servers.rs | SHA256 哈希存储，vk_agent_ 前缀 |
+| P1-B6 | Agent WebSocket 端点 | :construction: 桩代码 | `crates/remote/src/routes/agent_ws.rs` | Phase 1 仅建立框架 |
+| P1-B7 | 心跳处理和状态更新 | :x: 未开始 | 计划: `crates/remote/src/services/agent_connection.rs` | 依赖 Agent Daemon |
+| P1-B8 | 生成 TypeScript 类型 | :white_check_mark: 完成 | `shared/server-types.ts` | 手动定义（ts-rs 不包含此模型） |
+
+## Agent Daemon 任务 (Rust)
+
+| ID | 任务 | 状态 | 关键文件 | 备注 |
+|----|------|------|----------|------|
+| P1-A1 | 创建 agent-daemon crate | :x: 未开始 | `crates/agent-daemon/Cargo.toml` | |
+| P1-A2 | main.rs 入口 | :x: 未开始 | `crates/agent-daemon/src/main.rs` | |
+| P1-A3 | 连接管理模块 | :x: 未开始 | `crates/agent-daemon/src/connection.rs` | |
+| P1-A4 | 消息协议模块 | :x: 未开始 | `crates/agent-daemon/src/protocol.rs` | |
+| P1-A5 | 系统监控模块 | :x: 未开始 | `crates/agent-daemon/src/system_monitor.rs` | |
+| P1-A6 | 执行器发现 | :x: 未开始 | `crates/agent-daemon/src/executor_discovery.rs` | |
+| P1-A7 | Dockerfile | :x: 未开始 | `crates/agent-daemon/Dockerfile` | |
+| P1-A8 | docker-compose 示例 | :x: 未开始 | `crates/agent-daemon/docker-compose.yml` | |
+
+## 前端任务 (React)
+
+| ID | 任务 | 状态 | 关键文件 | 备注 |
+|----|------|------|----------|------|
+| P1-F1 | 服务器列表页面 | :white_check_mark: 完成 | `frontend/src/pages/ui-new/ServersPage.tsx` | 含搜索、统计、网格布局 |
+| P1-F2 | 服务器卡片组件 | :white_check_mark: 完成 | `frontend/src/components/ui-new/primitives/ServerCard.tsx` | 含资源进度条、执行器徽章 |
+| P1-F3 | 添加服务器对话框 | :white_check_mark: 完成 | `frontend/src/components/dialogs/servers/AddServerDialog.tsx` | 双阶段流程、Token 显示 |
+| P1-F4 | 服务器详情页面 | :white_check_mark: 完成 | `frontend/src/pages/ui-new/ServerDetailPage.tsx` | 双栏布局、完整信息展示 |
+| P1-F5 | 服务器状态实时更新 | :white_check_mark: 完成 | `frontend/src/hooks/useServerStatus.ts` | 连接质量检测、心跳超时判断 |
+| P1-F6 | Agent 安装指引组件 | :white_check_mark: 完成 | `frontend/src/components/ui-new/views/AgentInstallGuide.tsx` | Docker 命令、环境变量说明、FAQ |
+| P1-F7 | 路由配置 | :white_check_mark: 完成 | `frontend/src/App.tsx` | /servers 和 /servers/:serverId 路由 |
+| P1-F8 | 导航菜单项 | :white_check_mark: 完成 | `frontend/src/components/ui-new/containers/SharedAppLayout.tsx` | AppBar 已集成 Servers 按钮 |
+
+---
+
+## 已完成的基础设施
+
+### API 层
+- `frontend/src/lib/serverApi.ts` - 6 个 API 函数（list/create/get/update/delete/regenerateToken）
+
+### React Query Hooks
+- `frontend/src/hooks/serverKeys.ts` - Query Key 工厂
+- `frontend/src/hooks/useServers.ts` - 服务器列表查询（30s 刷新）
+- `frontend/src/hooks/useServer.ts` - 单服务器详情查询（15s 刷新）
+- `frontend/src/hooks/useServerMutations.ts` - CRUD 操作 mutations
+- `frontend/src/hooks/useServerStatus.ts` - 服务器状态实时监控（连接质量、心跳超时）
+
+### UI 组件
+- `frontend/src/components/ui/copyable-code-block.tsx` - 可复制代码块组件
+
+### 类型定义
+- `shared/server-types.ts` - 完整类型（Server, ServerExecutor, SystemInfo, SystemStats 等）
+
+### 数据库
+- `crates/remote/src/db/servers.rs` - ServerRepository（CRUD + Token 验证）
+- `crates/remote/migrations/20260208000000_servers_and_executors.sql` - 完整 Schema
+
+---
+
+## 新增文件清单（本次开发）
+
+| 文件 | 类型 | 说明 |
+|------|------|------|
+| `frontend/src/pages/ui-new/ServerDetailPage.tsx` | Page | 服务器详情页面入口 |
+| `frontend/src/components/ui-new/containers/ServerDetailContainer.tsx` | Container | 详情页状态管理 |
+| `frontend/src/components/ui-new/views/ServerDetailView.tsx` | View | 详情页纯展示 |
+| `frontend/src/components/ui-new/views/AgentInstallGuide.tsx` | View | Agent 安装指引 |
+| `frontend/src/components/ui/copyable-code-block.tsx` | UI | 可复制代码块 |
+| `frontend/src/hooks/useServerStatus.ts` | Hook | 状态实时监控 |
+
+## 修改文件清单（本次开发）
+
+| 文件 | 修改内容 |
+|------|----------|
+| `frontend/src/App.tsx` | 添加 /servers/:serverId 路由 |
+| `frontend/src/components/ui-new/containers/ServersContainer.tsx` | 实现导航到详情页 |
+
+---
+
+## 测试状态
+
+| 测试类型 | 状态 | 备注 |
+|----------|------|------|
+| Frontend TypeScript Check | :white_check_mark: 通过 | 0 errors |
+| Frontend ESLint | :white_check_mark: 通过 | 0 warnings, 0 errors |
+| Code Review | :white_check_mark: 通过 | 已修复 HIGH/MEDIUM 级别问题 |
+| Backend Cargo Test | :warning: 未执行 | 当前环境无 Rust 工具链 |
+| Backend Cargo Clippy | :warning: 未执行 | 当前环境无 Rust 工具链 |
+
+---
+
+## Git 提交历史
+
+| Commit | 描述 |
+|--------|------|
+| `fb26d2b6` | feat: add AI tool orchestration platform - Phase 1 server management |
+| `e476b3a4` | feat: add AI tool orchestration platform - Phase 1 frontend (server management) |
+| `4bc7989c` | fix: resolve TypeScript and ESLint errors in Phase 1 frontend |
+
+---
+
+## 下一步计划
+
+### 前端（已全部完成）
+Phase 1 前端 8 项任务已全部完成。
+
+### Agent Daemon（后续 Sprint）
+- P1-A1~A8: 完整的 Agent Daemon 实现（需要 Rust 开发环境）
+  - crate 创建和入口
+  - WebSocket 连接管理
+  - 系统监控和心跳上报
+  - 执行器自动发现
+  - Docker 容器化部署
+
+### 后端剩余任务（后续 Sprint）
+- P1-B7: 心跳处理和状态更新（依赖 Agent Daemon）
+
+### 代码质量改进（可选）
+- 提取重复的 getStatusDisplay 逻辑为共享工具
+- API 错误解析增加 non-JSON 响应兜底
+- 使用 ServerStatus 枚举值替代字符串字面量
+- window.confirm 替换为自定义确认对话框

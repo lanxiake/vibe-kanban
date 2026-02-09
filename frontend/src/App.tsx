@@ -51,6 +51,7 @@ import { ElectricTestPage } from '@/pages/ui-new/ElectricTestPage';
 import { ProjectKanban } from '@/pages/ui-new/ProjectKanban';
 import { MigratePage } from '@/pages/ui-new/MigratePage';
 import { ServersPage } from '@/pages/ui-new/ServersPage';
+import { ServerDetailPage } from '@/pages/ui-new/ServerDetailPage';
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
@@ -231,8 +232,12 @@ function AppContent() {
                 element={<ProjectKanban />}
               />
 
-              {/* Servers route */}
+              {/* Servers routes */}
               <Route path="/servers" element={<ServersPage />} />
+              <Route
+                path="/servers/:serverId"
+                element={<ServerDetailPage />}
+              />
 
               {/* Migration route */}
               <Route path="/migrate" element={<MigratePage />} />
