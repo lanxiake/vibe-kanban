@@ -134,8 +134,16 @@ async fn create_server(
         })?;
 
     // 生成 Docker 命令
-    let center_url = std::env::var("CENTER_WS_URL")
-        .unwrap_or_else(|_| "wss://your-center.com/v1/agent/ws".to_string());
+    let center_url = match std::env::var("CENTER_WS_URL") {
+        Ok(url) => url,
+        Err(_) => {
+            tracing::warn!(
+                "CENTER_WS_URL not set, using placeholder in Docker command. \
+                 Set this to your actual WebSocket URL for agents to connect."
+            );
+            "wss://your-center.com/v1/agent/ws".to_string()
+        }
+    };
     let docker_command = generate_docker_command(&center_url, &agent_token);
 
     // 记录分析事件
@@ -401,8 +409,16 @@ async fn regenerate_token(
         })?;
 
     // 生成 Docker 命令
-    let center_url = std::env::var("CENTER_WS_URL")
-        .unwrap_or_else(|_| "wss://your-center.com/v1/agent/ws".to_string());
+    let center_url = match std::env::var("CENTER_WS_URL") {
+        Ok(url) => url,
+        Err(_) => {
+            tracing::warn!(
+                "CENTER_WS_URL not set, using placeholder in Docker command. \
+                 Set this to your actual WebSocket URL for agents to connect."
+            );
+            "wss://your-center.com/v1/agent/ws".to_string()
+        }
+    };
     let docker_command = generate_docker_command(&center_url, &agent_token);
 
     // 记录分析事件
