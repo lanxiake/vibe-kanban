@@ -37,6 +37,8 @@ command-group = { version = "5.0", features = ["with-tokio"] }
 url = "2.5"
 reqwest = { workspace = true }
 sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "uuid", "chrono", "derive"] }
+sha2 = "0.10"
+hmac = "0.12"
 
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.29", features = ["signal", "process"] }
