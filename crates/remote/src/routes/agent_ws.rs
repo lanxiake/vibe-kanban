@@ -29,6 +29,7 @@ use uuid::Uuid;
 
 use crate::AppState;
 use crate::db::servers::{ServerRepository, ServerStatus};
+use crate::services::agent_connection::AgentConnectionManager;
 
 /// Agent 连接状态
 pub struct AgentConnection {
@@ -185,6 +186,12 @@ async fn handle_agent_connection(socket: WebSocket, state: AppState) {
         server_id, agent_id, register_payload.hostname
     );
 
+    // 注册连接
+    let conn_manager = state.agent_connection_manager();
+    if let Err(e) = conn_manager.register_connection(server_id, agent_id).await {
+        error!("Failed to register connection: {:?}", e);
+    }
+
     // 更新服务器状态
     if let Err(e) = server_repo
         .update_server_status(
@@ -275,6 +282,10 @@ async fn handle_agent_connection(socket: WebSocket, state: AppState) {
         }
     }
 
+    // 从连接管理器中移除
+    let conn_manager = state.agent_connection_manager();
+    conn_manager.remove_connection(server_id).await;
+
     // 更新服务器状态为离线
     if let Err(e) = server_repo
         .update_server_status(server_id, ServerStatus::Offline, None, None, None)
@@ -323,9 +334,18 @@ where
         "heartbeat" => {
             let payload: HeartbeatPayload = serde_json::from_value(msg.payload)?;
             let server_repo = ServerRepository::new(&state.pool);
+            
+            // 更新数据库中的心跳
             server_repo
                 .update_heartbeat(server_id, &payload.system_stats)
                 .await?;
+            
+            // 更新连接管理器中的心跳时间
+            let conn_manager = state.agent_connection_manager();
+            if let Err(e) = conn_manager.update_heartbeat(server_id).await {
+                warn!("Failed to update heartbeat in connection manager: {:?}", e);
+            }
+            
             debug!("Heartbeat received from server_id={}", server_id);
         }
         "execution_status" => {

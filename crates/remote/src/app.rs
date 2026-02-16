@@ -160,6 +160,10 @@ impl Server {
             analytics,
         );
 
+        // 启动 Agent 心跳监控任务
+        let _monitor_handle = state.agent_connection_manager().start_heartbeat_monitor();
+        tracing::info!("Agent heartbeat monitor started");
+
         let router = routes::router(state);
         let addr: SocketAddr = config
             .listen_addr

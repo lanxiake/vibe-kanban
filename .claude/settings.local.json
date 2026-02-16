@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo check:*)",
+      "Bash(where:*)",
+      "Bash(cmd /c:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(rustup:*)",
+      "Bash(curl:*)",
+      "Bash(sh:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static)",
+      "Bash(export RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup)",
+      "Bash(export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup:*)",
+      "Bash(export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup)",
+      "Bash(/tmp/rustup-init.exe:*)",
+      "Bash(export PATH=\"$HOME/.cargo/bin:$PATH\")",
+      "Bash(rustc:*)",
+      "Bash(cargo --version:*)",
+      "Bash($HOME/.cargo/bin/rustc:*)",
+      "Bash($HOME/.cargo/bin/rustc.exe:*)",
+      "Bash($HOME/.cargo/bin/cargo.exe:*)",
+      "Bash($HOME/.cargo/bin/rustup:*)",
+      "Bash(export RUSTUP_DIST_SERVER=https://mirrors.sjtug.sjtu.edu.cn/rust-static)",
+      "Bash(export RUSTUP_UPDATE_ROOT=https://mirrors.sjtug.sjtu.edu.cn/rust-static/rustup)",
+      "Bash($HOME/.cargo/bin/cargo:*)",
+      "Bash(cargo update:*)"
+    ]
+  }
+}

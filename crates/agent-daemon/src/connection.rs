@@ -10,6 +10,7 @@ use tokio::time::{interval, timeout};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 
+use crate::executor_discovery::discover_executors;
 use crate::protocol::{
     AgentRegisterAckPayload, AgentRegisterPayload, ExecutorInfo, HeartbeatPayload, WsMessage,
 };
@@ -252,9 +253,7 @@ impl ConnectionManager {
 
     /// 发现可用的执行器
     fn discover_executors(&self) -> Vec<ExecutorInfo> {
-        // TODO: 实际检测系统中安装的 AI 工具
-        // 目前返回空列表，后续实现
-        vec![]
+        executor_discovery::discover_executors()
     }
 
     /// 计算抖动值
@@ -262,8 +261,8 @@ impl ConnectionManager {
         use rand::Rng;
         let jitter_range = (delay as f64 * self.reconnect_config.jitter_percent as f64 / 100.0) as u64;
         if jitter_range > 0 {
-            let mut rng = rand::rng();
-            rng.random_range(0..jitter_range)
+            let mut rng = rand::thread_rng();
+            rng.gen_range(0..jitter_range)
         } else {
             0
         }

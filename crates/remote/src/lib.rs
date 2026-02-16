@@ -12,6 +12,7 @@ mod middleware;
 pub mod mutation_types;
 pub mod r2;
 pub mod routes;
+pub mod services;
 pub mod shapes;
 mod state;
 

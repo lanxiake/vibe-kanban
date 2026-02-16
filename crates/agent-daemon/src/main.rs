@@ -13,6 +13,7 @@ use tracing::{info, Level};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 mod connection;
+mod executor_discovery;
 mod protocol;
 mod system_monitor;
 

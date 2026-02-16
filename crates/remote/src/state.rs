@@ -10,6 +10,7 @@ use crate::{
     github_app::GitHubAppService,
     mail::Mailer,
     r2::R2Service,
+    services::agent_connection::AgentConnectionManager,
 };
 
 #[derive(Clone)]
@@ -26,6 +27,7 @@ pub struct AppState {
     github_app: Option<Arc<GitHubAppService>>,
     billing: BillingService,
     analytics: Option<AnalyticsService>,
+    agent_connection_manager: Arc<AgentConnectionManager>,
 }
 
 impl AppState {
@@ -44,6 +46,9 @@ impl AppState {
         billing: BillingService,
         analytics: Option<AnalyticsService>,
     ) -> Self {
+        // 创建 Agent 连接管理器（心跳超时 90 秒）
+        let agent_connection_manager = Arc::new(AgentConnectionManager::new(pool.clone(), 90));
+
         Self {
             pool,
             config,
@@ -57,6 +62,7 @@ impl AppState {
             github_app,
             billing,
             analytics,
+            agent_connection_manager,
         }
     }
 
@@ -98,5 +104,9 @@ impl AppState {
 
     pub fn analytics(&self) -> Option<&AnalyticsService> {
         self.analytics.as_ref()
+    }
+
+    pub fn agent_connection_manager(&self) -> Arc<AgentConnectionManager> {
+        Arc::clone(&self.agent_connection_manager)
     }
 }
