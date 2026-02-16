@@ -1,0 +1,48 @@
+# =============================================================================
+# Vibe Kanban Agent Daemon - 独立部署配置
+# =============================================================================
+# 在远程服务器上部署 Agent Daemon，连接到中心服务器
+#
+# 使用方式：
+#   1. 从 Web UI 创建服务器，获取 Agent Token
+#   2. 复制此目录到目标服务器
+#   3. 创建 .env 文件并填写 CENTER_URL 和 AGENT_TOKEN
+#   4. docker compose up -d
+# =============================================================================
+
+services:
+  vibe-agent:
+    build:
+      context: ../../crates/agent-daemon
+      dockerfile: Dockerfile
+    container_name: vibe-agent
+    restart: unless-stopped
+    environment:
+      # 必填：中心服务器 WebSocket URL（从 Web UI 的 Docker 命令中获取）
+      - CENTER_URL=${CENTER_URL:?Set CENTER_URL in .env}
+      # 必填：Agent Token（从 Web UI 获取）
+      - AGENT_TOKEN=${AGENT_TOKEN:?Set AGENT_TOKEN in .env}
+      # 可选：日志级别
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # 可选：心跳间隔（秒）
+      - HEARTBEAT_INTERVAL=${HEARTBEAT_INTERVAL:-30}
+    volumes:
+      # 工作区目录（存放 Git 仓库和工作文件）
+      - ${WORKSPACE_DIR:-./workspaces}:/app/workspaces
+      # 配置目录（存放 MCP、Skills 等配置）
+      - ${CONFIG_DIR:-./config}:/app/config
+      # 日志目录
+      - ${LOG_DIR:-./logs}:/var/log/agent
+      # SSH 密钥（用于 Git 操作，可选）
+      - ${SSH_DIR:-~/.ssh}:/home/agent/.ssh:ro
+    # 网络配置：使用 host 网络以便访问本地服务
+    network_mode: host
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 512M

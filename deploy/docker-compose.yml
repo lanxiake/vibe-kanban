@@ -1,0 +1,112 @@
+# =============================================================================
+# Vibe Kanban AI Tool Orchestration Platform - 部署配置
+# =============================================================================
+# 使用方式：
+#   cp .env.example .env && vim .env   # 填写环境变量
+#   docker compose up -d               # 启动所有服务
+#   docker compose logs -f             # 查看日志
+# =============================================================================
+
+services:
+  # ---------- PostgreSQL 数据库 ----------
+  db:
+    image: postgres:16-alpine
+    container_name: vibe-db
+    command: ["postgres", "-c", "wal_level=logical"]
+    environment:
+      POSTGRES_DB: remote
+      POSTGRES_USER: remote
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U remote -d remote"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  # ---------- ElectricSQL 实时同步引擎 ----------
+  electric:
+    image: electricsql/electric:1.3.3
+    container_name: vibe-electric
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgresql://electric_sync:${ELECTRIC_ROLE_PASSWORD}@db:5432/remote?sslmode=disable
+      PG_PROXY_PORT: 65432
+      LOGICAL_PUBLISHER_HOST: electric
+      AUTH_MODE: insecure
+      ELECTRIC_INSECURE: true
+      ELECTRIC_MANUAL_TABLE_PUBLISHING: true
+      ELECTRIC_USAGE_REPORTING: false
+      ELECTRIC_FEATURE_FLAGS: allow_subqueries,tagged_subqueries
+    volumes:
+      - electric-data:/app/persistent
+    depends_on:
+      db:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+    restart: on-failure
+
+  # ---------- Vibe Kanban Remote Server ----------
+  server:
+    build:
+      context: ..
+      dockerfile: crates/remote/Dockerfile
+    container_name: vibe-server
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # 数据库
+      SERVER_DATABASE_URL: postgres://remote:${POSTGRES_PASSWORD}@db:5432/remote
+      SERVER_LISTEN_ADDR: 0.0.0.0:8081
+      ELECTRIC_URL: http://electric:3000
+      ELECTRIC_ROLE_PASSWORD: ${ELECTRIC_ROLE_PASSWORD}
+
+      # 认证
+      VIBEKANBAN_REMOTE_JWT_SECRET: ${VIBEKANBAN_REMOTE_JWT_SECRET}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+
+      # 公共 URL
+      SERVER_PUBLIC_BASE_URL: ${SERVER_PUBLIC_BASE_URL:-http://localhost:3000}
+      VITE_APP_BASE_URL: ${SERVER_PUBLIC_BASE_URL:-http://localhost:3000}
+      VITE_API_BASE_URL: ${SERVER_PUBLIC_BASE_URL:-http://localhost:3000}
+
+      # Agent 管理
+      CENTER_WS_URL: ${CENTER_WS_URL:-ws://localhost:3000/v1/agent/ws}
+      TOKEN_HASH_SECRET: ${TOKEN_HASH_SECRET:-}
+
+      # 邮件
+      LOOPS_EMAIL_API_KEY: ${LOOPS_EMAIL_API_KEY:-}
+
+      # 日志
+      RUST_LOG: ${RUST_LOG:-info,remote=info}
+
+      # 可选服务
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_REVIEW_ENDPOINT: ${R2_REVIEW_ENDPOINT:-}
+      R2_REVIEW_BUCKET: ${R2_REVIEW_BUCKET:-}
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
+      GITHUB_APP_WEBHOOK_SECRET: ${GITHUB_APP_WEBHOOK_SECRET:-}
+      GITHUB_APP_SLUG: ${GITHUB_APP_SLUG:-}
+    ports:
+      - "3000:8081"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+volumes:
+  db-data:
+  electric-data:
