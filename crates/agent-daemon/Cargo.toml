@@ -33,6 +33,7 @@ chrono = { version = "0.4", features = ["serde"] }
 url = "2.5"
 base64 = "0.22"
 rand = "0.9"
+urlencoding = "2.1"
 
 # 系统信息
 sysinfo = "0.33"

@@ -102,12 +102,29 @@ impl ConnectionManager {
         Ok(())
     }
 
+    /// 构建带 token 认证参数的 WebSocket URL
+    fn build_auth_url(&self) -> String {
+        let separator = if self.center_url.contains('?') {
+            "&"
+        } else {
+            "?"
+        };
+        format!(
+            "{}{}token={}",
+            self.center_url,
+            separator,
+            urlencoding::encode(&self.agent_token)
+        )
+    }
+
     /// 连接并运行
     async fn connect_and_run(&mut self) -> Result<()> {
+        let auth_url = self.build_auth_url();
         info!("Connecting to center: {}", self.center_url);
+        debug!("WebSocket URL with auth: {}", auth_url);
 
-        // 建立 WebSocket 连接
-        let (ws_stream, _) = connect_async(&self.center_url)
+        // 建立 WebSocket 连接（URL 中携带 token 用于服务端预认证）
+        let (ws_stream, _) = connect_async(&auth_url)
             .await
             .context("Failed to connect to center")?;
 
