@@ -44,6 +44,7 @@ const AddServerDialogImpl = NiceModal.create<AddServerDialogProps>(() => {
   const [port, setPort] = useState('9999');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   // 创建成功后的响应数据
   const [createdResponse, setCreatedResponse] =
@@ -55,11 +56,10 @@ const AddServerDialogImpl = NiceModal.create<AddServerDialogProps>(() => {
 
   const { create } = useServerMutations(selectedOrgId || '', {
     onCreateSuccess: (response) => {
-      console.log('[AddServerDialog] Server created:', response.server.id);
       setCreatedResponse(response);
     },
-    onCreateError: (err) => {
-      console.error('[AddServerDialog] Failed to create server:', err);
+    onCreateError: () => {
+      // 错误由 create.isError / create.error 状态驱动 UI 展示
     },
   });
 
@@ -74,12 +74,44 @@ const AddServerDialogImpl = NiceModal.create<AddServerDialogProps>(() => {
       setCreatedResponse(null);
       setCopiedToken(false);
       setCopiedCommand(false);
+      setValidationErrors({});
     }
   }, [modal.visible]);
 
+  /** 验证表单输入 */
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!name.trim()) {
+      errors.name = '请输入服务器名称';
+    } else if (name.trim().length > 255) {
+      errors.name = '服务器名称不能超过 255 个字符';
+    }
+
+    if (!host.trim()) {
+      errors.host = '请输入主机地址';
+    } else {
+      // 验证主机格式：IP 地址或域名
+      const hostTrimmed = host.trim();
+      const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+      const hostnamePattern = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/;
+      if (!ipv4Pattern.test(hostTrimmed) && !hostnamePattern.test(hostTrimmed)) {
+        errors.host = '请输入有效的 IP 地址或域名';
+      }
+    }
+
+    const portNum = parseInt(port);
+    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+      errors.port = '端口范围：1-65535';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   /** 创建服务器 */
   const handleCreate = () => {
-    if (!name.trim() || !host.trim()) return;
+    if (!validateForm()) return;
 
     const tagArray = tags
       .split(',')
@@ -89,7 +121,7 @@ const AddServerDialogImpl = NiceModal.create<AddServerDialogProps>(() => {
     create.mutate({
       name: name.trim(),
       host: host.trim(),
-      port: parseInt(port) || 9999,
+      port: parseInt(port),
       description: description.trim() || null,
       tags: tagArray.length > 0 ? tagArray : null,
       ssh_config: null, // Phase 1 暂不支持 SSH
@@ -107,8 +139,8 @@ const AddServerDialogImpl = NiceModal.create<AddServerDialogProps>(() => {
         setCopiedCommand(true);
         setTimeout(() => setCopiedCommand(false), 2000);
       }
-    } catch (err) {
-      console.error('[AddServerDialog] Failed to copy:', err);
+    } catch {
+      // 剪贴板 API 不可用时静默失败
     }
   };
 
@@ -140,8 +172,6 @@ const AddServerDialogImpl = NiceModal.create<AddServerDialogProps>(() => {
     if (
       e.key === 'Enter' &&
       !createdResponse &&
-      name.trim() &&
-      host.trim() &&
       !create.isPending
     ) {
       e.preventDefault();
@@ -173,12 +203,18 @@ const AddServerDialogImpl = NiceModal.create<AddServerDialogProps>(() => {
               <Input
                 id="server-name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setValidationErrors((prev) => ({ ...prev, name: '' }));
+                }}
                 onKeyDown={handleKeyDown}
                 placeholder="例如：开发服务器"
                 autoFocus
                 disabled={create.isPending}
               />
+              {validationErrors.name && (
+                <p className="text-xs text-error">{validationErrors.name}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -189,11 +225,17 @@ const AddServerDialogImpl = NiceModal.create<AddServerDialogProps>(() => {
                 <Input
                   id="server-host"
                   value={host}
-                  onChange={(e) => setHost(e.target.value)}
+                  onChange={(e) => {
+                    setHost(e.target.value);
+                    setValidationErrors((prev) => ({ ...prev, host: '' }));
+                  }}
                   onKeyDown={handleKeyDown}
                   placeholder="例如：192.168.1.100"
                   disabled={create.isPending}
                 />
+                {validationErrors.host && (
+                  <p className="text-xs text-error">{validationErrors.host}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -201,12 +243,20 @@ const AddServerDialogImpl = NiceModal.create<AddServerDialogProps>(() => {
                 <Input
                   id="server-port"
                   type="number"
+                  min={1}
+                  max={65535}
                   value={port}
-                  onChange={(e) => setPort(e.target.value)}
+                  onChange={(e) => {
+                    setPort(e.target.value);
+                    setValidationErrors((prev) => ({ ...prev, port: '' }));
+                  }}
                   onKeyDown={handleKeyDown}
                   placeholder="9999"
                   disabled={create.isPending}
                 />
+                {validationErrors.port && (
+                  <p className="text-xs text-error">{validationErrors.port}</p>
+                )}
               </div>
             </div>
 
@@ -325,7 +375,7 @@ const AddServerDialogImpl = NiceModal.create<AddServerDialogProps>(() => {
               </Button>
               <Button
                 onClick={handleCreate}
-                disabled={!name.trim() || !host.trim() || create.isPending}
+                disabled={create.isPending}
               >
                 {create.isPending ? '创建中...' : '创建服务器'}
               </Button>

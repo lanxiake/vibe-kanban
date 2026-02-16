@@ -16,6 +16,39 @@ import type {
 } from 'shared/server-types';
 
 /**
+ * 安全地解析错误响应，兼容非 JSON 响应（如 502 HTML 页面）
+ * @param response - fetch 响应对象
+ * @param fallbackMessage - JSON 解析失败时的兜底错误信息
+ */
+async function handleErrorResponse(
+  response: Response,
+  fallbackMessage: string
+): Promise<never> {
+  let message = fallbackMessage;
+  try {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const error = await response.json();
+      message = error.message || fallbackMessage;
+    } else {
+      const text = await response.text();
+      message = text.slice(0, 200) || `${fallbackMessage} (HTTP ${response.status})`;
+    }
+  } catch {
+    message = `${fallbackMessage} (HTTP ${response.status})`;
+  }
+  throw new Error(message);
+}
+
+/**
+ * 安全地解析成功响应的 JSON 数据
+ * @param response - fetch 响应对象
+ */
+async function parseJsonResponse<T>(response: Response): Promise<T> {
+  return response.json() as Promise<T>;
+}
+
+/**
  * 获取当前组织的服务器列表
  * @param organizationId - 组织 ID
  * @returns 服务器列表（含执行器信息）和总数
@@ -27,11 +60,9 @@ export async function listServers(
     `/v1/organizations/${organizationId}/servers`
   );
   if (!response.ok) {
-    const error = await response.json();
-    console.error('[serverApi] listServers failed:', error);
-    throw new Error(error.message || 'Failed to list servers');
+    await handleErrorResponse(response, 'Failed to list servers');
   }
-  return response.json();
+  return parseJsonResponse<ListServersResponse>(response);
 }
 
 /**
@@ -52,11 +83,9 @@ export async function createServer(
     }
   );
   if (!response.ok) {
-    const error = await response.json();
-    console.error('[serverApi] createServer failed:', error);
-    throw new Error(error.message || 'Failed to create server');
+    await handleErrorResponse(response, 'Failed to create server');
   }
-  return response.json();
+  return parseJsonResponse<CreateServerResponse>(response);
 }
 
 /**
@@ -73,11 +102,9 @@ export async function getServer(
     `/v1/organizations/${organizationId}/servers/${serverId}`
   );
   if (!response.ok) {
-    const error = await response.json();
-    console.error('[serverApi] getServer failed:', error);
-    throw new Error(error.message || 'Failed to get server details');
+    await handleErrorResponse(response, 'Failed to get server details');
   }
-  return response.json();
+  return parseJsonResponse<GetServerResponse>(response);
 }
 
 /**
@@ -100,11 +127,9 @@ export async function updateServer(
     }
   );
   if (!response.ok) {
-    const error = await response.json();
-    console.error('[serverApi] updateServer failed:', error);
-    throw new Error(error.message || 'Failed to update server');
+    await handleErrorResponse(response, 'Failed to update server');
   }
-  return response.json();
+  return parseJsonResponse<ServerWithExecutors>(response);
 }
 
 /**
@@ -123,9 +148,7 @@ export async function deleteServer(
     }
   );
   if (!response.ok) {
-    const error = await response.json();
-    console.error('[serverApi] deleteServer failed:', error);
-    throw new Error(error.message || 'Failed to delete server');
+    await handleErrorResponse(response, 'Failed to delete server');
   }
 }
 
@@ -146,9 +169,7 @@ export async function regenerateAgentToken(
     }
   );
   if (!response.ok) {
-    const error = await response.json();
-    console.error('[serverApi] regenerateAgentToken failed:', error);
-    throw new Error(error.message || 'Failed to regenerate agent token');
+    await handleErrorResponse(response, 'Failed to regenerate agent token');
   }
-  return response.json();
+  return parseJsonResponse<RegenerateTokenResponse>(response);
 }
