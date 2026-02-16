@@ -7,13 +7,13 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
-use sha2::{Digest, Sha256};
 use utils::api::servers::{
     CreateServerRequest, CreateServerResponse, GetServerResponse, ListServersResponse,
     RegenerateTokenResponse, UpdateServerRequest,
 };
+use utils::crypto::hash_agent_token;
 use uuid::Uuid;
 
 use super::error::ErrorResponse;
@@ -39,7 +39,7 @@ pub fn router() -> Router<AppState> {
             get(get_server).put(update_server).delete(delete_server),
         )
         .route(
-            "/servers/{server_id}/regenerate-token",
+            "/organizations/{org_id}/servers/{server_id}/regenerate-token",
             post(regenerate_token),
         )
 }
@@ -56,25 +56,22 @@ fn generate_agent_token() -> String {
     ))
 }
 
-/// 计算 Token Hash
-fn hash_token(token: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(token.as_bytes());
-    format!("{:x}", hasher.finalize())
-}
-
 /// 生成 Docker 启动命令
+///
+/// 使用单引号包裹参数值防止 shell 注入
 fn generate_docker_command(center_url: &str, agent_token: &str) -> String {
+    let safe_url = center_url.replace('\'', "'\\''");
+    let safe_token = agent_token.replace('\'', "'\\''");
     format!(
         r#"docker run -d \
   --name vibe-agent \
   --restart unless-stopped \
-  -e CENTER_URL={} \
-  -e AGENT_TOKEN={} \
+  -e CENTER_URL='{}' \
+  -e AGENT_TOKEN='{}' \
   -v /path/to/repos:/app/workspaces \
   -v /path/to/config:/app/config \
   vibe-agent-daemon:latest"#,
-        center_url, agent_token
+        safe_url, safe_token
     )
 }
 
@@ -119,7 +116,7 @@ async fn create_server(
 
     // 生成 Agent Token
     let agent_token = generate_agent_token();
-    let token_hash = hash_token(&agent_token);
+    let token_hash = hash_agent_token(&agent_token);
 
     // 创建服务器
     let server_repo = ServerRepository::new(&state.pool);
@@ -353,22 +350,14 @@ async fn delete_server(
 
 /// 重新生成 Agent Token
 ///
-/// POST /servers/{server_id}/regenerate-token
+/// POST /organizations/{org_id}/servers/{server_id}/regenerate-token
 async fn regenerate_token(
     State(state): State<AppState>,
     axum::extract::Extension(ctx): axum::extract::Extension<RequestContext>,
-    Path(server_id): Path<Uuid>,
+    Path((org_id, server_id)): Path<(Uuid, Uuid)>,
 ) -> Result<impl IntoResponse, ErrorResponse> {
-    let server_repo = ServerRepository::new(&state.pool);
-
-    // 获取服务器信息
-    let server = server_repo.get_server(server_id).await.map_err(|e| match e {
-        IdentityError::NotFound => ErrorResponse::new(StatusCode::NOT_FOUND, "Server not found"),
-        _ => ErrorResponse::new(StatusCode::INTERNAL_SERVER_ERROR, "Database error"),
-    })?;
-
-    // 验证用户是否为组织管理员
-    assert_admin(&state.pool, server.organization_id, ctx.user.id)
+    // 先验证管理员权限
+    assert_admin(&state.pool, org_id, ctx.user.id)
         .await
         .map_err(|e| match e {
             IdentityError::NotFound => {
@@ -380,9 +369,24 @@ async fn regenerate_token(
             _ => ErrorResponse::new(StatusCode::INTERNAL_SERVER_ERROR, "Database error"),
         })?;
 
+    let server_repo = ServerRepository::new(&state.pool);
+
+    // 验证服务器归属
+    let server = server_repo.get_server(server_id).await.map_err(|e| match e {
+        IdentityError::NotFound => ErrorResponse::new(StatusCode::NOT_FOUND, "Server not found"),
+        _ => ErrorResponse::new(StatusCode::INTERNAL_SERVER_ERROR, "Database error"),
+    })?;
+
+    if server.organization_id != org_id {
+        return Err(ErrorResponse::new(
+            StatusCode::NOT_FOUND,
+            "Server not found",
+        ));
+    }
+
     // 生成新的 Agent Token
     let agent_token = generate_agent_token();
-    let token_hash = hash_token(&agent_token);
+    let token_hash = hash_agent_token(&agent_token);
 
     // 更新 Token Hash
     server_repo

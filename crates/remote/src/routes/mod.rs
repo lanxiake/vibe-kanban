@@ -1,12 +1,12 @@
 use axum::{
     Json, Router,
-    http::{Request, header::HeaderName},
+    http::{Method, Request, header, header::HeaderName},
     middleware,
     routing::get,
 };
 use serde::Serialize;
 use tower_http::{
-    cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer},
+    cors::{AllowOrigin, CorsLayer},
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, RequestId, SetRequestIdLayer},
     services::{ServeDir, ServeFile},
     trace::{DefaultOnFailure, TraceLayer},
@@ -150,13 +150,40 @@ pub fn router(state: AppState) -> Router {
         .layer(middleware::from_fn(
             crate::middleware::version::add_version_headers,
         ))
-        .layer(
+        .layer({
+            // CORS 配置：通过环境变量 CORS_ALLOWED_ORIGINS 设置允许的来源
+            // 多个来源用逗号分隔，例如 "https://app.example.com,http://localhost:3000"
+            let origins = if let Ok(origins_str) = std::env::var("CORS_ALLOWED_ORIGINS") {
+                let parsed: Vec<_> = origins_str
+                    .split(',')
+                    .filter_map(|s| s.trim().parse().ok())
+                    .collect();
+                tracing::info!("CORS allowed origins: {:?}", parsed);
+                AllowOrigin::list(parsed)
+            } else {
+                // 开发环境回退：允许 localhost 来源
+                tracing::warn!("CORS_ALLOWED_ORIGINS not set, allowing localhost origins for development");
+                AllowOrigin::list([
+                    "http://localhost:3000".parse().unwrap(),
+                    "http://localhost:5173".parse().unwrap(),
+                    "http://127.0.0.1:3000".parse().unwrap(),
+                    "http://127.0.0.1:5173".parse().unwrap(),
+                ])
+            };
+
             CorsLayer::new()
-                .allow_origin(AllowOrigin::mirror_request())
-                .allow_methods(AllowMethods::mirror_request())
-                .allow_headers(AllowHeaders::mirror_request())
-                .allow_credentials(true),
-        )
+                .allow_origin(origins)
+                .allow_methods([
+                    Method::GET,
+                    Method::POST,
+                    Method::PUT,
+                    Method::PATCH,
+                    Method::DELETE,
+                    Method::OPTIONS,
+                ])
+                .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT])
+                .allow_credentials(true)
+        })
         .layer(trace_layer)
         .layer(PropagateRequestIdLayer::new(HeaderName::from_static(
             "x-request-id",

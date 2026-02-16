@@ -139,7 +139,7 @@ pub(crate) async fn assert_project_access(
     assert_membership(pool, org_id, user_id).await
 }
 
-pub(super) async fn assert_admin(
+pub(crate) async fn assert_admin(
     pool: &PgPool,
     organization_id: Uuid,
     user_id: Uuid,

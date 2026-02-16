@@ -84,24 +84,17 @@ CREATE TABLE server_executors (
 CREATE INDEX idx_servers_organization_id ON servers(organization_id);
 CREATE INDEX idx_servers_status ON servers(status);
 CREATE INDEX idx_servers_agent_id ON servers(agent_id);
+CREATE UNIQUE INDEX idx_servers_agent_token_hash ON servers(agent_token_hash) WHERE agent_token_hash IS NOT NULL;
 CREATE INDEX idx_server_executors_server_id ON server_executors(server_id);
 CREATE INDEX idx_server_executors_status ON server_executors(status);
 
--- 更新时间触发器
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
+-- 更新时间触发器（复用已有的 set_updated_at 函数）
 CREATE TRIGGER update_servers_updated_at
     BEFORE UPDATE ON servers
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION set_updated_at();
 
 CREATE TRIGGER update_server_executors_updated_at
     BEFORE UPDATE ON server_executors
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION set_updated_at();

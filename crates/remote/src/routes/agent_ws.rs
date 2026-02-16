@@ -12,24 +12,26 @@ use std::sync::Arc;
 use axum::{
     Router,
     extract::{
-        State,
+        Query, State,
         ws::{Message, WebSocket, WebSocketUpgrade},
     },
+    http::StatusCode,
     response::IntoResponse,
     routing::get,
 };
 use chrono::Utc;
-use futures_util::{SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
+use super::error::ErrorResponse;
 use crate::AppState;
 use crate::db::servers::{ServerRepository, ServerStatus};
 use crate::services::agent_connection::AgentConnectionManager;
+use utils::crypto::hash_agent_token;
 
 /// Agent 连接状态
 pub struct AgentConnection {
@@ -80,6 +82,8 @@ impl WsMessage {
 /// Agent 注册消息
 #[derive(Debug, Deserialize)]
 struct AgentRegisterPayload {
+    /// Agent Token（保留用于协议兼容，实际认证已在 WebSocket 升级前完成）
+    #[allow(dead_code)]
     agent_token: String,
     hostname: String,
     agent_version: String,
@@ -107,16 +111,50 @@ struct HeartbeatPayload {
     executor_statuses: Vec<JsonValue>,
 }
 
+/// WebSocket 连接查询参数（用于预认证）
+#[derive(Debug, Deserialize)]
+struct AgentWsParams {
+    /// Agent Token，在 WebSocket 升级前验证
+    token: String,
+}
+
 /// WebSocket 升级处理
+///
+/// 在升级 WebSocket 连接前通过 query parameter 验证 Agent Token，
+/// 防止未认证的连接消耗服务器资源（DoS 防护）。
 async fn agent_ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
-) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_agent_connection(socket, state))
+    Query(params): Query<AgentWsParams>,
+) -> Result<impl IntoResponse, ErrorResponse> {
+    // 在 HTTP 升级前验证 token，拒绝无效连接
+    let token_hash = hash_agent_token(&params.token);
+    let server_repo = ServerRepository::new(&state.pool);
+
+    match server_repo.find_by_agent_token_hash(&token_hash).await {
+        Ok(Some(server)) => {
+            debug!("WebSocket pre-auth succeeded for server_id={}, upgrading connection", server.id);
+            Ok(ws
+                .max_frame_size(1024 * 1024)        // 1MB per frame
+                .max_message_size(4 * 1024 * 1024)   // 4MB per message
+                .on_upgrade(move |socket| handle_agent_connection(socket, state, server.id)))
+        }
+        Ok(None) => {
+            warn!("WebSocket pre-auth failed: invalid agent token");
+            Err(ErrorResponse::new(StatusCode::UNAUTHORIZED, "Invalid agent token"))
+        }
+        Err(e) => {
+            error!("WebSocket pre-auth database error: {:?}", e);
+            Err(ErrorResponse::new(StatusCode::INTERNAL_SERVER_ERROR, "Authentication error"))
+        }
+    }
 }
 
 /// 处理 Agent 连接
-async fn handle_agent_connection(socket: WebSocket, state: AppState) {
+///
+/// server_id 已在 WebSocket 升级前通过预认证确定。
+/// 此处仍需等待 Agent 发送注册消息以获取系统信息和执行器列表。
+async fn handle_agent_connection(socket: WebSocket, state: AppState, server_id: Uuid) {
     let (mut sender, mut receiver) = socket.split();
 
     // 等待注册消息
@@ -133,7 +171,8 @@ async fn handle_agent_connection(socket: WebSocket, state: AppState) {
             let _ = sender
                 .send(Message::Text(
                     serde_json::to_string(&WsMessage::error("register_failed", &e.to_string()))
-                        .unwrap_or_default(),
+                        .unwrap_or_default()
+                        .into(),
                 ))
                 .await;
             return;
@@ -143,42 +182,15 @@ async fn handle_agent_connection(socket: WebSocket, state: AppState) {
             let _ = sender
                 .send(Message::Text(
                     serde_json::to_string(&WsMessage::error("timeout", "Register timeout"))
-                        .unwrap_or_default(),
+                        .unwrap_or_default()
+                        .into(),
                 ))
                 .await;
             return;
         }
     };
 
-    // 验证 Agent Token
-    let token_hash = hash_token(&register_payload.agent_token);
     let server_repo = ServerRepository::new(&state.pool);
-
-    let server = match server_repo.find_by_agent_token_hash(&token_hash).await {
-        Ok(Some(server)) => server,
-        Ok(None) => {
-            error!("Invalid agent token");
-            let _ = sender
-                .send(Message::Text(
-                    serde_json::to_string(&WsMessage::error("invalid_token", "Invalid agent token"))
-                        .unwrap_or_default(),
-                ))
-                .await;
-            return;
-        }
-        Err(e) => {
-            error!("Database error: {:?}", e);
-            let _ = sender
-                .send(Message::Text(
-                    serde_json::to_string(&WsMessage::error("database_error", "Database error"))
-                        .unwrap_or_default(),
-                ))
-                .await;
-            return;
-        }
-    };
-
-    let server_id = server.id;
     let agent_id = Uuid::new_v4();
 
     info!(
@@ -241,7 +253,7 @@ async fn handle_agent_connection(socket: WebSocket, state: AppState) {
     );
 
     if let Err(e) = sender
-        .send(Message::Text(serde_json::to_string(&ack).unwrap_or_default()))
+        .send(Message::Text(serde_json::to_string(&ack).unwrap_or_default().into()))
         .await
     {
         error!("Failed to send register ack: {:?}", e);
@@ -377,11 +389,4 @@ where
     }
 
     Ok(())
-}
-
-/// 计算 Token Hash
-fn hash_token(token: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(token.as_bytes());
-    format!("{:x}", hasher.finalize())
 }
