@@ -10,7 +10,7 @@ use tokio::time::{interval, timeout};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 
-use crate::executor_discovery::discover_executors;
+use crate::executor_discovery;
 use crate::protocol::{
     AgentRegisterAckPayload, AgentRegisterPayload, ExecutorInfo, HeartbeatPayload, WsMessage,
 };

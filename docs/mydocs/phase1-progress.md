@@ -1,6 +1,6 @@
 # Phase 1: 服务器管理 + Agent Daemon 基础 - 进度追踪
 
-> 最后更新: 2026-02-09
+> 最后更新: 2026-02-16
 
 ## 总体进度
 
@@ -34,7 +34,7 @@
 | P1-A3 | 连接管理模块 | :white_check_mark: 完成 | `crates/agent-daemon/src/connection.rs` | WebSocket 连接、重连、心跳 |
 | P1-A4 | 消息协议模块 | :white_check_mark: 完成 | `crates/agent-daemon/src/protocol.rs` | 完整消息类型定义 |
 | P1-A5 | 系统监控模块 | :white_check_mark: 完成 | `crates/agent-daemon/src/system_monitor.rs` | CPU/内存/磁盘监控 |
-| P1-A6 | 执行器发现 | :white_check_mark: 完成 | `crates/agent-daemon/src/executor_discovery.rs` | 检测 Claude Code/Gemini/Codex |
+| P1-A6 | 执行器发现 | :white_check_mark: 完成 | `crates/agent-daemon/src/executor_discovery.rs` | 检测 Claude Code/Gemini/Codex/Aider |
 | P1-A7 | Dockerfile | :white_check_mark: 完成 | `crates/agent-daemon/Dockerfile` | 多阶段构建、健康检查 |
 | P1-A8 | docker-compose 示例 | :white_check_mark: 完成 | `crates/agent-daemon/docker-compose.yml` | 完整配置示例 |
 
@@ -113,6 +113,7 @@
 | `crates/remote/src/lib.rs` | 添加 services 模块 |
 | `crates/agent-daemon/src/connection.rs` | 修复 rand 使用，集成执行器发现 |
 | `crates/agent-daemon/src/main.rs` | 添加 executor_discovery 模块 |
+| `crates/agent-daemon/src/executor_discovery.rs` | 添加 Aider 检测，修复 version 移动问题 |
 
 ---
 
@@ -123,8 +124,8 @@
 | Frontend TypeScript Check | :white_check_mark: 通过 | 0 errors |
 | Frontend ESLint | :white_check_mark: 通过 | 0 warnings, 0 errors |
 | Code Review | :white_check_mark: 通过 | 已修复 HIGH/MEDIUM 级别问题 |
-| Backend Cargo Test | :warning: 未执行 | 当前环境无 Rust 工具链 |
-| Backend Cargo Clippy | :warning: 未执行 | 当前环境无 Rust 工具链 |
+| Backend Cargo Check | :white_check_mark: 通过 | agent-daemon 编译成功 |
+| Backend Cargo Clippy | :white_check_mark: 通过 | 仅有未使用结构体警告（预留功能） |
 
 ---
 

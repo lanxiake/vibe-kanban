@@ -5,7 +5,7 @@
 use std::process::Command;
 use tracing::{debug, warn};
 
-use crate::protocol::{ExecutorInfo, SystemInfo};
+use crate::protocol::ExecutorInfo;
 
 /// 发现可用的执行器
 ///
@@ -17,7 +17,7 @@ pub fn discover_executors() -> Vec<ExecutorInfo> {
     if let Some(version) = detect_claude_code() {
         executors.push(ExecutorInfo {
             executor_type: "claude_code".to_string(),
-            version: Some(version),
+            version: Some(version.clone()),
             capabilities: vec![
                 "session_fork".to_string(),
                 "setup_helper".to_string(),
@@ -32,7 +32,7 @@ pub fn discover_executors() -> Vec<ExecutorInfo> {
     if let Some(version) = detect_gemini_cli() {
         executors.push(ExecutorInfo {
             executor_type: "gemini_cli".to_string(),
-            version: Some(version),
+            version: Some(version.clone()),
             capabilities: vec!["session_fork".to_string()],
             config_path: None,
         });
@@ -43,15 +43,27 @@ pub fn discover_executors() -> Vec<ExecutorInfo> {
     if let Some(version) = detect_codex() {
         executors.push(ExecutorInfo {
             executor_type: "codex".to_string(),
-            version: Some(version),
+            version: Some(version.clone()),
             capabilities: vec!["session_fork".to_string()],
             config_path: None,
         });
         debug!("Discovered Codex executor: {}", version);
     }
 
-    // 检测其他执行器...
-    // TODO: 添加更多执行器检测逻辑
+    // 检测 Aider
+    if let Some(version) = detect_aider() {
+        executors.push(ExecutorInfo {
+            executor_type: "aider".to_string(),
+            version: Some(version.clone()),
+            capabilities: vec![
+                "session_fork".to_string(),
+                "git_integration".to_string(),
+                "pair_programming".to_string(),
+            ],
+            config_path: None,
+        });
+        debug!("Discovered Aider executor: {}", version);
+    }
 
     if executors.is_empty() {
         warn!("No executors discovered. Make sure AI tools are installed and in PATH.");
@@ -102,6 +114,24 @@ fn detect_codex() -> Option<String> {
     // 尝试运行 codex --version 或类似命令
     // 注意：实际的命令名可能不同，需要根据实际情况调整
     let output = Command::new("codex")
+        .arg("--version")
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        let version = String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .to_string();
+        Some(version)
+    } else {
+        None
+    }
+}
+
+/// 检测 Aider
+fn detect_aider() -> Option<String> {
+    // 尝试运行 aider --version
+    let output = Command::new("aider")
         .arg("--version")
         .output()
         .ok()?;
